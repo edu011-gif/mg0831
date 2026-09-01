@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>팀 예산 자동 예측/편성 시스템</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans antialiased">
+
+  <!-- 상단 네비게이션 헤더 -->
+  <header class="border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="p-2.5 bg-indigo-600 rounded-xl text-white shadow-md shadow-indigo-200 flex items-center justify-center">
+          <i data-lucide="calculator" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-lg font-bold text-slate-900">
+              2027년도 연초 예산 자동 예측/편성 시스템
+            </h1>
+            <span class="px-2.5 py-0.5 text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full">
+              4개년 실적 기반
+            </span>
+          </div>
+          <p class="text-xs text-slate-500">Past Performance Based Next-Year Budget Forecasting Tool</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <button
+          id="btn-export-csv"
+          class="flex items-center space-x-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition active:scale-95 shadow-sm"
+        >
+          <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600"></i>
+          <span>엑셀 다운로드 (.csv)</span>
+        </button>
+        <button
+          id="btn-open-add-modal"
+          class="flex items-center space-x-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-200 transition active:scale-95"
+        >
+          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          <span>신규 계정과목 추가</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 메인 레이아웃 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- 상단 요약 대시보드 카드 -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <p class="text-xs text-slate-500 font-medium mb-1">2026년 확정 예산 총액</p>
+        <div id="card-total-2026" class="text-2xl font-bold text-slate-900">₩0</div>
+        <p class="text-[11px] text-slate-400 mt-1">직전 년도 예산 합계</p>
+      </div>
+
+      <div class="bg-gradient-to-br from-indigo-50/80 to-violet-50/50 border border-indigo-200/80 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+        <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-indigo-200/30 rounded-full blur-xl pointer-events-none"></div>
+        <p class="text-xs text-indigo-700 font-bold mb-1 flex items-center space-x-1">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-600 inline"></i>
+          <span>2027년 예측 수립 예산 총액</span>
+        </p>
+        <div id="card-total-2027" class="text-2xl font-black text-indigo-900">₩0</div>
+        <p class="text-[11px] text-indigo-600/80 mt-1">설정 전략 기반 자동 산정 합계</p>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <p class="text-xs text-slate-500 font-medium mb-1">전년 대비 증감액 (YoY)</p>
+        <div id="card-diff-amount" class="text-2xl font-bold flex items-center space-x-1 text-emerald-600">
+          <i id="card-diff-icon" data-lucide="arrow-up-right" class="w-5 h-5"></i>
+          <span id="card-diff-text">₩0</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-1">2026년 대비 변동액</p>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <p class="text-xs text-slate-500 font-medium mb-1">전년 대비 증감율 (%)</p>
+        <div id="card-diff-rate" class="text-2xl font-bold text-emerald-600">+0.00%</div>
+        <p class="text-[11px] text-slate-400 mt-1">전체 예산 변동 비율</p>
+      </div>
+    </div>
+
+    <!-- 탭 네비게이션 및 컨트롤 바 -->
+    <div class="flex flex-wrap items-center justify-between border-b border-slate-200 pb-2 gap-4">
+      <div class="flex space-x-6">
+        <button
+          id="tab-btn-planning"
+          class="pb-2.5 flex items-center space-x-2 font-bold text-sm transition relative text-indigo-600 border-b-2 border-indigo-600"
+        >
+          <i data-lucide="calculator" class="w-4 h-4"></i>
+          <span>차기년도 (2027년) 예산 수립</span>
+        </button>
+        <button
+          id="tab-btn-analysis"
+          class="pb-2.5 flex items-center space-x-2 font-bold text-sm transition relative text-slate-500 hover:text-slate-800"
+        >
+          <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+          <span>4개년 추이 및 비율 분석</span>
+        </button>
+      </div>
+
+      <!-- 검색 및 과거 예산 수정 버튼 -->
+      <div class="flex items-center space-x-3">
+        <div class="relative">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+          <input
+            type="text"
+            id="search-input"
+            placeholder="과목명/코드 검색..."
+            class="pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 shadow-sm"
+          />
+        </div>
+
+        <button
+          id="btn-toggle-edit-history"
+          class="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+        >
+          <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+          <span id="btn-toggle-edit-text">과거 예산액 직접 수정</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 1: 차기년도 예산 수립 테이블 -->
+    <div id="tab-content-planning" class="space-y-4">
+      <!-- 안내 알림 바 -->
+      <div class="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-700">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="info" class="w-4 h-4 text-indigo-600 flex-shrink-0"></i>
+          <span id="notice-text">
+            각 계정과목별로 <strong>산정 방식</strong>을 선택하면 2027년 예산이 자동 계산됩니다. 과거 예산 수치가 틀리다면 우측 상단 <strong>'과거 예산액 직접 수정'</strong> 버튼을 클릭하세요.
+          </span>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 font-medium text-[11px] text-slate-600">
+          <span class="px-2 py-0.5 bg-white rounded border border-slate-200">📈 % 상승/하락</span>
+          <span class="px-2 py-0.5 bg-white rounded border border-slate-200">📊 4개년 평균</span>
+          <span class="px-2 py-0.5 bg-white rounded border border-slate-200">❄️ 동결</span>
+          <span class="px-2 py-0.5 bg-white rounded border border-slate-200">🚀 추세선 예측</span>
+          <span class="px-2 py-0.5 bg-white rounded border border-slate-200">✏️ 직접 입력</span>
+        </div>
+      </div>
+
+      <!-- 메인 데이터 테이블 -->
+      <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr class="bg-slate-100/80 text-xs font-semibold text-slate-600 border-b border-slate-200">
+                <th class="py-3 px-4 min-w-[150px]">계정과목</th>
+                <th class="py-3 px-3 text-right text-slate-500">2023년</th>
+                <th class="py-3 px-3 text-right text-slate-500">2024년</th>
+                <th class="py-3 px-3 text-right text-slate-500">2025년</th>
+                <th class="py-3 px-4 text-right text-indigo-900 bg-indigo-50/60 border-x border-indigo-100">
+                  2026년 (직전)
+                </th>
+                <th class="py-3 px-4 text-center min-w-[160px]">산정 방식 (전략)</th>
+                <th class="py-3 px-4 text-center min-w-[110px]">설정 값 (%/금액)</th>
+                <th class="py-3 px-4 text-right text-indigo-700 bg-indigo-50 min-w-[140px] font-bold">
+                  2027년 계획 예산
+                </th>
+                <th class="py-3 px-4 text-right">전년 대비 증감</th>
+                <th class="py-3 px-4 min-w-[200px]">편성 근거 및 사유</th>
+                <th class="py-3 px-3 text-center">삭제</th>
+              </tr>
+            </thead>
+            <tbody id="budget-table-body" class="divide-y divide-slate-200 text-xs text-slate-700">
+              <!-- Dynamically Populated -->
+            </tbody>
+            <tfoot id="budget-table-foot">
+              <!-- Dynamically Populated -->
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: 4개년 추이 및 비율 분석 -->
+    <div id="tab-content-analysis" class="space-y-8 hidden">
+      
+      <!-- 1. 차기년도 예산 구성 비율 (Ratio Analysis) -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+            <i data-lucide="pie-chart" class="w-5 h-5 text-indigo-600"></i>
+            <span>2027년 계정과목별 예산 점유 비율</span>
+          </h3>
+          <span class="text-xs text-slate-500">총 예산: <strong id="ratio-total-label">0만원</strong></span>
+        </div>
+
+        <!-- 비율 프로그레스 바 -->
+        <div id="ratio-bar-container" class="h-5 w-full bg-slate-100 rounded-xl overflow-hidden flex shadow-inner">
+          <!-- Dynamically Rendered Bars -->
+        </div>
+
+        <!-- 비율 범례 -->
+        <div id="ratio-legend-container" class="flex flex-wrap gap-4 pt-1">
+          <!-- Dynamically Rendered Legend -->
+        </div>
+      </div>
+
+      <!-- 2. 전체 계정과목 종합 선 그래프 비교 -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+            <i data-lucide="line-chart" class="w-5 h-5 text-indigo-600"></i>
+            <span>전체 계정과목 예산 종합 추이 비교 (2023 ~ 2027)</span>
+          </h3>
+          <div class="text-xs text-slate-400 flex items-center space-x-3">
+            <span class="flex items-center space-x-1">
+              <span class="w-3 h-0.5 bg-slate-600 inline-block"></span>
+              <span>실적 (23~26년)</span>
+            </span>
+            <span class="flex items-center space-x-1">
+              <span class="w-3 h-0.5 border-t border-dashed border-indigo-600 inline-block"></span>
+              <span>예측 (27년)</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- 종합 SVG 선 그래프 container -->
+        <div id="multi-chart-container" class="w-full overflow-x-auto pt-2">
+          <!-- SVG Rendered Here -->
+        </div>
+      </div>
+
+      <!-- 3. 개별 계정과목별 세부 선 그래프 카드 -->
+      <div class="space-y-4">
+        <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+          <i data-lucide="bar-chart-3" class="w-5 h-5 text-indigo-600"></i>
+          <span>계정과목별 단독 추이 상세 분석</span>
+        </h3>
+
+        <div id="individual-charts-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Dynamically Rendered Cards -->
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- 신규 항목 등록 모달 -->
+  <div id="add-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white border border-slate-200 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+        <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+          <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-600"></i>
+          <span>신규 계정과목 / 사업 추가</span>
+        </h3>
+        <button id="btn-close-modal" class="text-slate-400 hover:text-slate-600 transition text-lg font-bold">
+          ✕
+        </button>
+      </div>
+
+      <form id="add-item-form" class="p-6 space-y-4 text-xs">
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">계정 코드 *</label>
+            <input
+              type="text"
+              id="new-code"
+              required
+              placeholder="예: 105"
+              class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+          <div class="col-span-2">
+            <label class="block font-semibold text-slate-700 mb-1">과목명 / 사업명 *</label>
+            <input
+              type="text"
+              id="new-name"
+              required
+              placeholder="예: 연구개발비, 시설개선비 등"
+              class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">계정 개요 및 설명</label>
+          <input
+            type="text"
+            id="new-desc"
+            placeholder="예: R&D 기술 연구 및 특허 출원비"
+            class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+
+        <!-- 과거 4개년 예산 최초 입력 영역 -->
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+          <span class="font-bold text-slate-800 block">과거 4개년 예산 금액 최초 입력 (원)</span>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-slate-500 mb-0.5 block">2023년</label>
+              <input
+                type="number"
+                id="new-h2023"
+                value="0"
+                class="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-800 focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="text-slate-500 mb-0.5 block">2024년</label>
+              <input
+                type="number"
+                id="new-h2024"
+                value="0"
+                class="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-800 focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="text-slate-500 mb-0.5 block">2025년</label>
+              <input
+                type="number"
+                id="new-h2025"
+                value="0"
+                class="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-800 focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="text-slate-500 mb-0.5 block">2026년 (직전)</label>
+              <input
+                type="number"
+                id="new-h2026"
+                value="0"
+                class="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-800 focus:outline-none focus:border-indigo-500 font-bold text-indigo-700"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">산정 방식 선택</label>
+          <select
+            id="new-method"
+            class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-indigo-500"
+          >
+            <option value="percent">📈 % 인상/하락</option>
+            <option value="average">📊 과거 4개년 평균</option>
+            <option value="freeze">❄️ 전년 동일 (동결)</option>
+            <option value="trend">🚀 추세선 자동예측</option>
+            <option value="manual">✏️ 직접 입력</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">편성 근거 사유</label>
+          <input
+            type="text"
+            id="new-note"
+            placeholder="예: 신규 사업 추진에 따른 예산 신규 편성"
+            value="신규 사업 예산 편성"
+            class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+          <button
+            type="button"
+            id="btn-cancel-modal"
+            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold transition"
+          >
+            취소
+          </button>
+          <button
+            type="submit"
+            class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition shadow-md shadow-indigo-200"
+          >
+            과목 등록
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Initial 4-year budget data
+    let items = [
+      {
+        id: 'cat-1',
+        code: '101',
+        name: '사업비',
+        description: '핵심 서비스 개발, 외주용역 및 프로젝트 직접비',
+        history: {
+          '2023': 120000000,
+          '2024': 135000000,
+          '2025': 148000000,
+          '2026': 160000000,
+        },
+        plan: {
+          method: 'percent',
+          percentValue: 5,
+          manualValue: 0,
+          note: '신규 프로젝트 확장 및 외주 단가 상승률 반영 (+5%)'
+        }
+      },
+      {
+        id: 'cat-2',
+        code: '102',
+        name: '수용비',
+        description: '사무실 소모품, 인쇄비, 클라우드 라이선스 및 장비 임차료',
+        history: {
+          '2023': 25000000,
+          '2024': 28000000,
+          '2025': 30000000,
+          '2026': 32000000,
+        },
+        plan: {
+          method: 'average',
+          percentValue: 0,
+          manualValue: 0,
+          note: '최근 4개년 평균 예산 기준으로 산정하여 변동성 최소화'
+        }
+      },
+      {
+        id: 'cat-3',
+        code: '103',
+        name: '국내여비',
+        description: '팀원 국내 출장비, 교통비 및 현장 조사 경비',
+        history: {
+          '2023': 18000000,
+          '2024': 15000000,
+          '2025': 16500000,
+          '2026': 17000000,
+        },
+        plan: {
+          method: 'freeze',
+          percentValue: 0,
+          manualValue: 0,
+          note: '원격 회의 활성화에 따른 전년도 동결'
+        }
+      },
+      {
+        id: 'cat-4',
+        code: '104',
+        name: '수수료',
+        description: '법률/회계 자문료, 전자결제 수수료 및 카드 수수료',
+        history: {
+          '2023': 8000000,
+          '2024': 9500000,
+          '2025': 11000000,
+          '2026': 12500000,
+        },
+        plan: {
+          method: 'trend',
+          percentValue: 0,
+          manualValue: 0,
+          note: '거래건수 증가 추세(선형 회귀) 반영 자동 산정'
+        }
+      }
+    ];
+
+    const nextYear = 2027;
+    const historyYears = ['2023', '2024', '2025', '2026'];
+    const colorPalette = ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#0284c7', '#8b5cf6', '#14b8a6'];
+
+    // State Variables
+    let activeTab = 'planning'; // 'planning' | 'analysis'
+    let searchQuery = '';
+    let isEditingHistory = false;
+
+    // Helper: Currency Format
+    function formatCurrency(val) {
+      return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(val || 0);
+    }
+
+    // Calculation Logic
+    function calculateNextYearBudget(item) {
+      const lastYearValue = Number(item.history['2026']) || 0;
+      const { method, percentValue, manualValue } = item.plan;
+
+      switch (method) {
+        case 'percent': {
+          const rate = 1 + (Number(percentValue) || 0) / 100;
+          return Math.round(lastYearValue * rate);
+        }
+        case 'average': {
+          const values = historyYears.map(y => Number(item.history[y]) || 0);
+          const sum = values.reduce((a, b) => a + b, 0);
+          return Math.round(sum / values.length);
+        }
+        case 'freeze': {
+          return lastYearValue;
+        }
+        case 'trend': {
+          const y23 = Number(item.history['2023']) || 0;
+          const y26 = Number(item.history['2026']) || 0;
+          const avgAnnualChange = (y26 - y23) / 3;
+          return Math.max(0, Math.round(y26 + avgAnnualChange));
+        }
+        case 'manual': {
+          return Number(manualValue) || 0;
+        }
+        default:
+          return lastYearValue;
+      }
+    }
+
+    // Get Summary Stats
+    function getSummaryStats() {
+      let total2026 = 0;
+      let total2027 = 0;
+      const yearlyTotals = { '2023': 0, '2024': 0, '2025': 0, '2026': 0 };
+
+      items.forEach(item => {
+        historyYears.forEach(y => {
+          yearlyTotals[y] += Number(item.history[y]) || 0;
+        });
+        total2026 += Number(item.history['2026']) || 0;
+        total2027 += calculateNextYearBudget(item);
+      });
+
+      const diffAmount = total2027 - total2026;
+      const diffRate = total2026 > 0 ? ((diffAmount / total2026) * 100).toFixed(2) : '0.00';
+
+      return {
+        yearlyTotals,
+        total2026,
+        total2027,
+        diffAmount,
+        diffRate
+      };
+    }
+
+    // Master Render Function
+    function render() {
+      const stats = getSummaryStats();
+
+      // 1. Update Top Dashboard Cards
+      document.getElementById('card-total-2026').textContent = formatCurrency(stats.total2026);
+      document.getElementById('card-total-2027').textContent = formatCurrency(stats.total2027);
+
+      const diffAmountElem = document.getElementById('card-diff-amount');
+      const diffTextElem = document.getElementById('card-diff-text');
+      const diffIconElem = document.getElementById('card-diff-icon');
+      const diffRateElem = document.getElementById('card-diff-rate');
+
+      const isPositive = stats.diffAmount >= 0;
+      diffTextElem.textContent = formatCurrency(Math.abs(stats.diffAmount));
+      
+      if (isPositive) {
+        diffAmountElem.className = "text-2xl font-bold flex items-center space-x-1 text-emerald-600";
+        diffRateElem.className = "text-2xl font-bold text-emerald-600";
+        diffRateElem.textContent = `+${stats.diffRate}%`;
+        diffIconElem.setAttribute('data-lucide', 'arrow-up-right');
+      } else {
+        diffAmountElem.className = "text-2xl font-bold flex items-center space-x-1 text-rose-600";
+        diffRateElem.className = "text-2xl font-bold text-rose-600";
+        diffRateElem.textContent = `${stats.diffRate}%`;
+        diffIconElem.setAttribute('data-lucide', 'arrow-down-right');
+      }
+
+      // 2. Render Notice Bar Text
+      const noticeText = document.getElementById('notice-text');
+      if (isEditingHistory) {
+        noticeText.innerHTML = `<strong class="text-amber-700">[과거 예산 수정 모드 활성화] 2023 ~ 2026년 실적 금액 셀을 직접 클릭하여 수정할 수 있습니다.</strong>`;
+      } else {
+        noticeText.innerHTML = `각 계정과목별로 <strong>산정 방식</strong>을 선택하면 2027년 예산이 자동 계산됩니다. 과거 예산 수치가 틀리다면 우측 상단 <strong>'과거 예산액 직접 수정'</strong> 버튼을 클릭하세요.`;
+      }
+
+      // 3. Filter Items for Table
+      const filtered = items.filter(item =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+      // 4. Render Planning Table Body
+      const tbody = document.getElementById('budget-table-body');
+      tbody.innerHTML = '';
+
+      filtered.forEach(item => {
+        const nextBudget = calculateNextYearBudget(item);
+        const lastYearBudget = Number(item.history['2026']) || 0;
+        const diff = nextBudget - lastYearBudget;
+        const rate = lastYearBudget > 0 ? ((diff / lastYearBudget) * 100).toFixed(1) : '0';
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50/80 transition";
+
+        // Account Code / Name
+        let html = `
+          <td class="py-3 px-4">
+            <div class="font-bold text-slate-900 flex items-center space-x-1.5">
+              <span class="text-[11px] text-slate-500 font-mono">[${item.code}]</span>
+              <span>${item.name}</span>
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5 line-clamp-1">${item.description}</div>
+          </td>
+        `;
+
+        // History Years
+        historyYears.forEach(yr => {
+          const val = item.history[yr];
+          const is2026 = yr === '2026';
+          const bgClass = is2026 ? 'bg-indigo-50/30 border-x border-indigo-100/60 font-semibold text-slate-900' : 'text-slate-600';
+
+          if (isEditingHistory) {
+            html += `
+              <td class="py-3 px-3 text-right font-mono ${bgClass}">
+                <input
+                  type="number"
+                  value="${val}"
+                  data-action="edit-history"
+                  data-id="${item.id}"
+                  data-year="${yr}"
+                  class="w-20 px-1.5 py-1 text-right bg-amber-50 border border-amber-300 rounded text-xs text-amber-900 font-bold focus:outline-none focus:border-amber-500"
+                />
+              </td>
+            `;
+          } else {
+            html += `
+              <td class="py-3 px-3 text-right font-mono ${bgClass}">
+                ${formatCurrency(val)}
+              </td>
+            `;
+          }
+        });
+
+        // Method Selector
+        html += `
+          <td class="py-3 px-4 text-center">
+            <select
+              data-action="change-method"
+              data-id="${item.id}"
+              class="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-medium focus:outline-none focus:border-indigo-500 shadow-sm w-full"
+            >
+              <option value="percent" ${item.plan.method === 'percent' ? 'selected' : ''}>📈 % 인상/하락</option>
+              <option value="average" ${item.plan.method === 'average' ? 'selected' : ''}>📊 과거 4개년 평균</option>
+              <option value="freeze" ${item.plan.method === 'freeze' ? 'selected' : ''}>❄️ 전년 동일 (동결)</option>
+              <option value="trend" ${item.plan.method === 'trend' ? 'selected' : ''}>🚀 추세선 자동예측</option>
+              <option value="manual" ${item.plan.method === 'manual' ? 'selected' : ''}>✏️ 직접 입력</option>
+            </select>
+          </td>
+        `;
+
+        // Setting Value
+        html += `<td class="py-3 px-4 text-center">`;
+        if (item.plan.method === 'percent') {
+          html += `
+            <div class="flex items-center justify-center space-x-1">
+              <input
+                type="number"
+                value="${item.plan.percentValue}"
+                data-action="change-percent"
+                data-id="${item.id}"
+                class="w-16 px-2 py-1 bg-white border border-slate-300 rounded text-center text-xs text-indigo-700 font-bold focus:outline-none focus:border-indigo-500 shadow-sm"
+              />
+              <span class="text-slate-500 font-bold">%</span>
+            </div>
+          `;
+        } else if (item.plan.method === 'manual') {
+          html += `
+            <input
+              type="number"
+              value="${item.plan.manualValue}"
+              data-action="change-manual"
+              data-id="${item.id}"
+              class="w-24 px-2 py-1 bg-white border border-slate-300 rounded text-right text-xs text-indigo-700 font-mono font-bold focus:outline-none focus:border-indigo-500 shadow-sm"
+              placeholder="금액 입력"
+            />
+          `;
+        } else {
+          html += `<span class="text-[11px] text-slate-400 font-medium">자동 산정</span>`;
+        }
+        html += `</td>`;
+
+        // 2027 Forecast Budget Result
+        html += `
+          <td class="py-3 px-4 text-right font-mono font-black text-indigo-700 bg-indigo-50/70 text-sm">
+            ${formatCurrency(nextBudget)}
+          </td>
+        `;
+
+        // YoY Diff
+        const diffText = diff >= 0 ? `+${formatCurrency(diff)}` : formatCurrency(diff);
+        const diffColor = diff >= 0 ? 'text-emerald-600' : 'text-rose-600';
+        const rateText = rate >= 0 ? `+${rate}%` : `${rate}%`;
+
+        html += `
+          <td class="py-3 px-4 text-right font-mono">
+            <div class="font-bold ${diffColor}">${diffText}</div>
+            <div class="text-[10px] ${diffColor}">(${rateText})</div>
+          </td>
+        `;
+
+        // Note Input
+        html += `
+          <td class="py-3 px-4">
+            <input
+              type="text"
+              value="${item.plan.note || ''}"
+              data-action="change-note"
+              data-id="${item.id}"
+              placeholder="편성 사유 및 특이사항 입력"
+              class="w-full bg-white border border-slate-200 rounded px-2.5 py-1 text-xs text-slate-700 focus:outline-none focus:border-indigo-500 shadow-sm"
+            />
+          </td>
+        `;
+
+        // Delete Button
+        html += `
+          <td class="py-3 px-3 text-center">
+            <button
+              data-action="delete-item"
+              data-id="${item.id}"
+              class="text-slate-400 hover:text-rose-600 transition p-1"
+              title="과목 삭제"
+            >
+              <i data-lucide="trash-2" class="w-4 h-4 inline pointer-events-none"></i>
+            </button>
+          </td>
+        `;
+
+        tr.innerHTML = html;
+        tbody.appendChild(tr);
+      });
+
+      // 5. Render Planning Table Footer
+      const tfoot = document.getElementById('budget-table-foot');
+      const totalDiff = stats.total2027 - stats.total2026;
+      const totalDiffText = totalDiff >= 0 ? `+${formatCurrency(totalDiff)}` : formatCurrency(totalDiff);
+      const totalDiffColor = totalDiff >= 0 ? 'text-emerald-600' : 'text-rose-600';
+
+      tfoot.innerHTML = `
+        <tr class="bg-indigo-50/50 text-slate-900 font-bold border-t-2 border-indigo-200">
+          <td class="py-3.5 px-4 text-sm">총 예산 합계</td>
+          <td class="py-3.5 px-3 text-right font-mono text-xs text-slate-600">${formatCurrency(stats.yearlyTotals['2023'])}</td>
+          <td class="py-3.5 px-3 text-right font-mono text-xs text-slate-600">${formatCurrency(stats.yearlyTotals['2024'])}</td>
+          <td class="py-3.5 px-3 text-right font-mono text-xs text-slate-600">${formatCurrency(stats.yearlyTotals['2025'])}</td>
+          <td class="py-3.5 px-4 text-right font-mono text-xs text-indigo-900 bg-indigo-100/50">${formatCurrency(stats.total2026)}</td>
+          <td colSpan="2" class="text-center text-xs text-slate-500 font-normal">합계 자동 집계</td>
+          <td class="py-3.5 px-4 text-right font-mono text-base text-indigo-900 bg-indigo-100/80">
+            ${formatCurrency(stats.total2027)}
+          </td>
+          <td class="py-3.5 px-4 text-right font-mono text-xs">
+            <span class="${totalDiffColor}">${totalDiffText}</span>
+          </td>
+          <td colSpan="2"></td>
+        </tr>
+      `;
+
+      // 6. Render Tab 2 Analysis Content
+      renderAnalysisTab(stats);
+
+      // Re-initialize Lucide icons
+      lucide.createIcons();
+    }
+
+    // Analysis Tab Renderer
+    function renderAnalysisTab(stats) {
+      document.getElementById('ratio-total-label').textContent = `${(stats.total2027 / 10000).toLocaleString('ko-KR')}만원`;
+
+      // 1. Ratio Bar & Legend
+      const ratioBarContainer = document.getElementById('ratio-bar-container');
+      const ratioLegendContainer = document.getElementById('ratio-legend-container');
+      ratioBarContainer.innerHTML = '';
+      ratioLegendContainer.innerHTML = '';
+
+      items.forEach((item, idx) => {
+        const color = colorPalette[idx % colorPalette.length];
+        const budget = calculateNextYearBudget(item);
+        const share = stats.total2027 > 0 ? (budget / stats.total2027) * 100 : 0;
+
+        if (share > 0) {
+          const bar = document.createElement('div');
+          bar.style.width = `${share}%`;
+          bar.style.backgroundColor = color;
+          bar.className = 'h-full transition-all duration-500 hover:opacity-90 relative group';
+          bar.title = `${item.name}: ${share.toFixed(1)}%`;
+          ratioBarContainer.appendChild(bar);
+        }
+
+        const legend = document.createElement('div');
+        legend.className = 'flex items-center space-x-2 text-xs';
+        legend.innerHTML = `
+          <span class="w-3 h-3 rounded-full" style="background-color: ${color}"></span>
+          <span class="font-semibold text-slate-700">${item.name}</span>
+          <span class="text-slate-400 font-mono">(${share.toFixed(1)}%)</span>
+        `;
+        ratioLegendContainer.appendChild(legend);
+      });
+
+      // 2. Multi-Line SVG Chart
+      const multiChartContainer = document.getElementById('multi-chart-container');
+      let allVals = [];
+      items.forEach(item => {
+        historyYears.forEach(y => allVals.push(Number(item.history[y]) || 0));
+        allVals.push(calculateNextYearBudget(item));
+      });
+      const maxVal = Math.max(...allVals, 1) * 1.15;
+
+      const svgWidth = 700;
+      const svgHeight = 260;
+      const padL = 65, padR = 30, padT = 30, padB = 40;
+      const chartW = svgWidth - padL - padR;
+      const chartH = svgHeight - padT - padB;
+
+      const getX = (i) => padL + (i / 4) * chartW;
+      const getY = (val) => padT + chartH - (val / maxVal) * chartH;
+      const years = ['2023', '2024', '2025', '2026', `2027(예측)`];
+
+      let multiSvgHtml = `<svg viewBox="0 0 ${svgWidth} ${svgHeight}" class="w-full h-auto max-h-[300px] select-none">`;
+
+      // Grid lines
+      [0, 0.25, 0.5, 0.75, 1].forEach((ratio) => {
+        const y = padT + chartH * (1 - ratio);
+        const valLabel = Math.round((maxVal * ratio) / 10000);
+        multiSvgHtml += `
+          <g>
+            <line x1="${padL}" y1="${y}" x2="${svgWidth - padR}" y2="${y}" stroke="#f1f5f9" stroke-width="1.5" />
+            <text x="${padL - 10}" y="${y + 4}" text-anchor="end" class="text-[10px] fill-slate-400 font-mono">${valLabel.toLocaleString()}만</text>
+          </g>
+        `;
+      });
+
+      // X-Axis Labels
+      years.forEach((yr, i) => {
+        const x = getX(i);
+        const is2027 = i === 4;
+        multiSvgHtml += `
+          <g>
+            <line x1="${x}" y1="${padT + chartH}" x2="${x}" y2="${padT + chartH + 5}" stroke="#cbd5e1" stroke-width="1.5" />
+            <text x="${x}" y="${padT + chartH + 20}" text-anchor="middle" class="text-[11px] font-mono ${is2027 ? 'fill-indigo-600 font-bold' : 'fill-slate-500'}">${yr}</text>
+          </g>
+        `;
+      });
+
+      // Item Lines & Nodes
+      items.forEach((item, idx) => {
+        const color = colorPalette[idx % colorPalette.length];
+        const values = [
+          Number(item.history['2023']) || 0,
+          Number(item.history['2024']) || 0,
+          Number(item.history['2025']) || 0,
+          Number(item.history['2026']) || 0,
+          calculateNextYearBudget(item)
+        ];
+        const points = values.map((v, i) => ({ x: getX(i), y: getY(v), val: v }));
+
+        const solidPath = `M ${points[0].x} ${points[0].y} ` + points.slice(1, 4).map(p => `L ${p.x} ${p.y}`).join(' ');
+        const dashedPath = `M ${points[3].x} ${points[3].y} L ${points[4].x} ${points[4].y}`;
+
+        multiSvgHtml += `<path d="${solidPath}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />`;
+        multiSvgHtml += `<path d="${dashedPath}" fill="none" stroke="${color}" stroke-width="2.5" stroke-dasharray="4 4" stroke-linecap="round" />`;
+
+        points.forEach((p, i) => {
+          const isPredict = i === 4;
+          multiSvgHtml += `
+            <circle 
+              cx="${p.x}" 
+              cy="${p.y}" 
+              r="${isPredict ? 5 : 4}" 
+              fill="${isPredict ? '#ffffff' : color}" 
+              stroke="${color}" 
+              stroke-width="2.5" 
+            />
+          `;
+        });
+      });
+
+      multiSvgHtml += `</svg>`;
+      multiChartContainer.innerHTML = multiSvgHtml;
+
+      // 3. Individual Chart Grid
+      const gridContainer = document.getElementById('individual-charts-grid');
+      gridContainer.innerHTML = '';
+
+      items.forEach((item, idx) => {
+        const color = colorPalette[idx % colorPalette.length];
+        const nextBudget = calculateNextYearBudget(item);
+        const values = [
+          Number(item.history['2023']) || 0,
+          Number(item.history['2024']) || 0,
+          Number(item.history['2025']) || 0,
+          Number(item.history['2026']) || 0,
+          nextBudget
+        ];
+
+        const cardMax = Math.max(...values, 1) * 1.2;
+        const cardMin = Math.min(...values) * 0.8;
+
+        const cWidth = 400, cHeight = 160;
+        const cPadL = 20, cPadR = 20, cPadT = 25, cPadB = 30;
+        const cW = cWidth - cPadL - cPadR;
+        const cH = cHeight - cPadT - cPadB;
+
+        const getCX = (i) => cPadL + (i / 4) * cW;
+        const getCY = (v) => {
+          const range = cardMax - cardMin || 1;
+          return cPadT + cH - ((v - cardMin) / range) * cH;
+        };
+
+        const cPoints = values.map((v, i) => ({ x: getCX(i), y: getCY(v), val: v }));
+        const cSolidPath = `M ${cPoints[0].x} ${cPoints[0].y} ` + cPoints.slice(1, 4).map(p => `L ${p.x} ${p.y}`).join(' ');
+        const cDashedPath = `M ${cPoints[3].x} ${cPoints[3].y} L ${cPoints[4].x} ${cPoints[4].y}`;
+        const cAreaPath = `M ${cPoints[0].x} ${cPoints[0].y} ` + 
+          cPoints.slice(1, 4).map(p => `L ${p.x} ${p.y}`).join(' ') + 
+          ` L ${cPoints[3].x} ${cPadT + cH} L ${cPoints[0].x} ${cPadT + cH} Z`;
+
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'p-5 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-3';
+
+        cardDiv.innerHTML = `
+          <div class="flex justify-between items-center">
+            <div>
+              <span class="text-sm font-bold text-slate-900">${item.name}</span>
+              <span class="text-xs text-slate-400 font-mono ml-2">[${item.code}]</span>
+            </div>
+            <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+              2027년 계획: ${(nextBudget / 10000).toLocaleString('ko-KR')}만원
+            </span>
+          </div>
+
+          <div class="bg-slate-50 rounded-xl p-2 border border-slate-100">
+            <svg viewBox="0 0 ${cWidth} ${cHeight}" class="w-full h-auto">
+              <defs>
+                <linearGradient id="grad-${item.id}" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="${color}" stop-opacity="0.25" />
+                  <stop offset="100%" stop-color="${color}" stop-opacity="0.0" />
+                </linearGradient>
+              </defs>
+
+              <path d="${cAreaPath}" fill="url(#grad-${item.id})" />
+              <path d="${cSolidPath}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="${cDashedPath}" fill="none" stroke="${color}" stroke-width="2.5" stroke-dasharray="4 4" stroke-linecap="round" />
+
+              ${cPoints.map((p, i) => {
+                const isPredict = i === 4;
+                const yrLabel = isPredict ? `'27` : `'2${3+i}`;
+                const amtText = `${Math.round(p.val / 10000)}만`;
+                return `
+                  <g>
+                    <circle cx="${p.x}" cy="${p.y}" r="${isPredict ? 5 : 4}" fill="${isPredict ? color : '#ffffff'}" stroke="${color}" stroke-width="2.5" />
+                    <text x="${p.x}" y="${p.y - 8}" text-anchor="middle" class="text-[9px] font-mono font-bold ${isPredict ? 'fill-indigo-600' : 'fill-slate-600'}">${amtText}</text>
+                    <text x="${p.x}" y="${cPadT + cH + 15}" text-anchor="middle" class="text-[10px] font-mono ${isPredict ? 'fill-indigo-600 font-bold' : 'fill-slate-400'}">${yrLabel}</text>
+                  </g>
+                `;
+              }).join('')}
+            </svg>
+          </div>
+        `;
+
+        gridContainer.appendChild(cardDiv);
+      });
+    }
+
+    // Event Handlers Setup
+    document.addEventListener('DOMContentLoaded', () => {
+
+      // Tab Switching
+      const btnTabPlanning = document.getElementById('tab-btn-planning');
+      const btnTabAnalysis = document.getElementById('tab-btn-analysis');
+      const tabPlanning = document.getElementById('tab-content-planning');
+      const tabAnalysis = document.getElementById('tab-content-analysis');
+
+      btnTabPlanning.addEventListener('click', () => {
+        activeTab = 'planning';
+        btnTabPlanning.className = "pb-2.5 flex items-center space-x-2 font-bold text-sm transition relative text-indigo-600 border-b-2 border-indigo-600";
+        btnTabAnalysis.className = "pb-2.5 flex items-center space-x-2 font-bold text-sm transition relative text-slate-500 hover:text-slate-800";
+        tabPlanning.classList.remove('hidden');
+        tabAnalysis.classList.add('hidden');
+      });
+
+      btnTabAnalysis.addEventListener('click', () => {
+        activeTab = 'analysis';
+        btnTabAnalysis.className = "pb-2.5 flex items-center space-x-2 font-bold text-sm transition relative text-indigo-600 border-b-2 border-indigo-600";
+        btnTabPlanning.className = "pb-2.5 flex items-center space-x-2 font-bold text-sm transition relative text-slate-500 hover:text-slate-800";
+        tabAnalysis.classList.remove('hidden');
+        tabPlanning.classList.add('hidden');
+        render(); // Re-render charts
+      });
+
+      // Search Filter
+      document.getElementById('search-input').addEventListener('input', (e) => {
+        searchQuery = e.target.value;
+        render();
+      });
+
+      // History Edit Toggle
+      const btnToggleEdit = document.getElementById('btn-toggle-edit-history');
+      const btnToggleText = document.getElementById('btn-toggle-edit-text');
+
+      btnToggleEdit.addEventListener('click', () => {
+        isEditingHistory = !isEditingHistory;
+        if (isEditingHistory) {
+          btnToggleEdit.className = "flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition shadow-sm bg-amber-500 text-white border-amber-600";
+          btnToggleText.textContent = "과거 예산 수정 완료";
+        } else {
+          btnToggleEdit.className = "flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50";
+          btnToggleText.textContent = "과거 예산액 직접 수정";
+        }
+        render();
+      });
+
+      // Table Input Actions (Event Delegation)
+      document.getElementById('budget-table-body').addEventListener('change', (e) => {
+        const target = e.target;
+        const action = target.getAttribute('data-action');
+        const id = target.getAttribute('data-id');
+
+        if (!action || !id) return;
+
+        items = items.map(item => {
+          if (item.id === id) {
+            if (action === 'edit-history') {
+              const yr = target.getAttribute('data-year');
+              return {
+                ...item,
+                history: {
+                  ...item.history,
+                  [yr]: Math.max(0, Number(target.value) || 0)
+                }
+              };
+            }
+            if (action === 'change-method') {
+              return {
+                ...item,
+                plan: {
+                  ...item.plan,
+                  method: target.value
+                }
+              };
+            }
+            if (action === 'change-percent') {
+              return {
+                ...item,
+                plan: {
+                  ...item.plan,
+                  percentValue: Number(target.value) || 0
+                }
+              };
+            }
+            if (action === 'change-manual') {
+              return {
+                ...item,
+                plan: {
+                  ...item.plan,
+                  manualValue: Number(target.value) || 0
+                }
+              };
+            }
+            if (action === 'change-note') {
+              return {
+                ...item,
+                plan: {
+                  ...item.plan,
+                  note: target.value
+                }
+              };
+            }
+          }
+          return item;
+        });
+
+        render();
+      });
+
+      // Delete Item Action
+      document.getElementById('budget-table-body').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action="delete-item"]');
+        if (btn) {
+          const id = btn.getAttribute('data-id');
+          items = items.filter(item => item.id !== id);
+          render();
+        }
+      });
+
+      // Modal Controls
+      const modal = document.getElementById('add-modal');
+      const btnOpenModal = document.getElementById('btn-open-add-modal');
+      const btnCloseModal = document.getElementById('btn-close-modal');
+      const btnCancelModal = document.getElementById('btn-cancel-modal');
+      const formAddItem = document.getElementById('add-item-form');
+
+      btnOpenModal.addEventListener('click', () => modal.classList.remove('hidden'));
+      btnCloseModal.addEventListener('click', () => modal.classList.add('hidden'));
+      btnCancelModal.addEventListener('click', () => modal.classList.add('hidden'));
+
+      // Add New Item Submit
+      formAddItem.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const code = document.getElementById('new-code').value;
+        const name = document.getElementById('new-name').value;
+        const description = document.getElementById('new-desc').value || '신규 등록 계정과목';
+        const h2023 = Number(document.getElementById('new-h2023').value) || 0;
+        const h2024 = Number(document.getElementById('new-h2024').value) || 0;
+        const h2025 = Number(document.getElementById('new-h2025').value) || 0;
+        const h2026 = Number(document.getElementById('new-h2026').value) || 0;
+        const method = document.getElementById('new-method').value;
+        const note = document.getElementById('new-note').value;
+
+        const newItem = {
+          id: `cat-${Date.now()}`,
+          code,
+          name,
+          description,
+          history: {
+            '2023': h2023,
+            '2024': h2024,
+            '2025': h2025,
+            '2026': h2026,
+          },
+          plan: {
+            method,
+            percentValue: 5,
+            manualValue: method === 'manual' ? h2026 : 0,
+            note
+          }
+        };
+
+        items.push(newItem);
+        modal.classList.add('hidden');
+        formAddItem.reset();
+        render();
+      });
+
+      // CSV Export
+      document.getElementById('btn-export-csv').addEventListener('click', () => {
+        const headers = [
+          '계정코드', 
+          '계정과목명', 
+          '적요/설명', 
+          '2023년 예산', 
+          '2024년 예산', 
+          '2025년 예산', 
+          '2026년 예산', 
+          '산정 방식', 
+          '설정 값(%/금액)', 
+          `2027년 계획 예산`, 
+          '전년 대비 증감액', 
+          '전년 대비 증감율(%)', 
+          '편성 근거 및 사유'
+        ];
+
+        const methodLabels = {
+          percent: '% 인상/하락',
+          average: '과거 4개년 평균',
+          freeze: '전년 동일 (동결)',
+          trend: '추세선 자동예측',
+          manual: '직접 입력'
+        };
+
+        const rows = items.map(item => {
+          const nextBudget = calculateNextYearBudget(item);
+          const lastYearBudget = Number(item.history['2026']) || 0;
+          const diff = nextBudget - lastYearBudget;
+          const rate = lastYearBudget > 0 ? ((diff / lastYearBudget) * 100).toFixed(1) : '0';
+
+          const settingVal = item.plan.method === 'percent' 
+            ? `${item.plan.percentValue}%` 
+            : (item.plan.method === 'manual' ? item.plan.manualValue : '-');
+
+          return [
+            `"${item.code}"`,
+            `"${item.name}"`,
+            `"${(item.description || '').replace(/"/g, '""')}"`,
+            item.history['2023'] || 0,
+            item.history['2024'] || 0,
+            item.history['2025'] || 0,
+            item.history['2026'] || 0,
+            `"${methodLabels[item.plan.method] || item.plan.method}"`,
+            `"${settingVal}"`,
+            nextBudget,
+            diff,
+            `"${rate}%"`,
+            `"${(item.plan.note || '').replace(/"/g, '""')}"`
+          ].join(',');
+        });
+
+        const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `2027년도_팀_예산계획_수립안.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+
+      // Initial Render
+      render();
+    });
+  </script>
+</body>
+</html>
